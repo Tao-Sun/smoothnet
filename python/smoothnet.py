@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 import mxnet as mx
 from smoothnet import Smooth
 
@@ -26,7 +26,7 @@ def pooling(data, pool_type="max", kernel=(2, 2), stride=(2, 2)):
     output = mx.sym.Pooling(data, pool_type=pool_type, kernel=kernel, stride=stride)
     return output
 
-def net(images, flows, labels):
+def get_smooth_net(images, flows, labels):
     num_filter = 64
 
     conv1 = convolution(images, num_filter=num_filter)
@@ -60,5 +60,3 @@ def net(images, flows, labels):
 
     smoothnet = mx.sym.softmaxoutput(data=conv_classifier, label=labels, multi_output=True, ignore_label=11, use_ignore=True)
     return smoothnet
-
-

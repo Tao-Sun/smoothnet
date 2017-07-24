@@ -4,7 +4,7 @@ import random
 import cv2
 
 class ImageFlowIter(mx.io.DataIter):
-    def __init__(self, batch_size=3, path_root, frame_rate, shuffle, data_name='data', label_name='label'):
+    def __init__(self, batch_size=3, path_root, frame_rate=30, shuffle=True, data_name='data', label_name='label'):
         #self._provide_data = zip(data_names, data_shapes)
         #self._provide_label = zip(label_names, label_shapes)
         self._batch_size = batch_size
@@ -45,8 +45,8 @@ class ImageFlowIter(mx.io.DataIter):
     def next(self):
         if self._cur_subdir_idx < len(self._subdir):
             if self._cur_batch_idx < self._cur_batch_num:
-                data = _read_batch_data()
-                label = _read_batch_label()
+                data = mx.nd.array(_read_batch_data())
+                label = mx.nd.array(_read_batch_label())
                 self.cur_batch_idx += 1
                 return mx.io.DataBatch(data, label)
             else:
@@ -71,12 +71,11 @@ class ImageFlowIter(mx.io.DataIter):
         return len(_cur_subdir_files) / batch_size + 1
     
     def _read_batch_data(self):
-        batch_start_idx = self._cur_batch_idx * batch_size
-        batch_end_idx = (batch_start_idx + batch_size) if (batch_start_idx + batch_size) < len(self._cur_subdir_files) else len(self._cur_subdir_files)
+        batch_start_idx = self._cur_batch_idx * self._batch_size
+        batch_end_idx = self._get_batch_end_idx()
         
         images = []
         flows = np.array([])
-        
         for i, (image_file, _) in enumerate(self._cur_subdir_files[batch_start_idx:batch_end_idx]):
             image_path = self._path_root + "/" + self._subdirs[self._cur_subdir_idx] + '/' + 'images' + '/' + image_file
             img = mx.image.imdecode(open(image_path).read())
@@ -86,10 +85,26 @@ class ImageFlowIter(mx.io.DataIter):
                 img_flows = self._get_img_flows(image_file)
                 np.append(flows, img_flows)
 
-        retun {'images': mx.nd.array(images), 'flows': mx.nd.array(flows)}
+        return np.array([mx.nd.array(images), mx.nd.array(flows)])
 
     def _read_batch_label(self):
-        return None
+        batch_start_idx = self._cur_batch_idx * self._batch_size
+        batch_end_idx = self._get_batch_end_idx()
+
+        labels = []
+        for i, (image_file, _) in enumerate(self._cur_subdir_files[batch_start_idx:batch_end_idx]):
+            label_path = self._path_root + "/" + self._subdirs[self._cur_subdir_idx] + '/' + 'annot' + '/' + image_file
+            label = mx.image.imdecode(open(label_path).read())
+            labels.append(label)
+
+        return np.array(labels)
+
+    def _get_batch_end_idx(self):
+        if (batch_start_idx + self._batch_size) < len(self._cur_subdir_files) :
+            return (batch_start_idx + self._batch_size)
+        else:
+            return len(self._cur_subdir_files)
+
 
     def _get_img_flows(self, image_file):
         flow_start_index = image_file[0:image_file.index('.png')] - self._frame_rate
