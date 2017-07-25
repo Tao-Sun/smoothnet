@@ -5,22 +5,36 @@ from imageflowiter import ImageFlowIter
 
 FLAGS = None
 
+
 def train():
     batch_size = FLAGS.batch_size
-    context = mx.GPU() if FLAGS.device ==  'GPU' else mx.cpu()
+    context = mx.gpu() if FLAGS.device == 'gpu' else mx.cpu()
+    frame_rate = FLAGS.frame_rate
     data_dir = FLAGS.data_dir
+    image_shape = FLAGS.image_shape
+    flow_shape = FLAGS.flow_shape
     epoch = FLAGS.epoch
     learning_rate = FLAGS.learning_rate
 
-    train_iter = ImageFlowIter(batch_size=batch_size, path_root=data_dir + '/train')
+    batch_image_shape = (batch_size,) + image_shape
+    batch_flow_shape = (batch_size, frame_rate) + flow_shape
+    train_iter = ImageFlowIter(data_names=['data', 'flow'],
+                               data_shapes=[batch_image_shape, batch_flow_shape],
+                               label_names=['softmax_label'],
+                               label_shapes=[(batch_size, 360, 480)],
+                               batch_size=batch_size,
+                               path_root=data_dir + '/train')
 
-    data = mx.sym.var('data')
-    images = data[0]
-    flows = data[1]
+    images = mx.sym.var('data')
+    flows = mx.sym.var('flow')
     labels = mx.sym.var('softmax_label')
-    smooth_net = get_smooth_net(images, flows, lables)
 
-    smoothnet_model = mx.mod.Module(symbol=smooth_net, context=context)
+    smooth_net = get_smooth_net(images, batch_image_shape, flows, batch_flow_shape, labels)
+
+    smoothnet_model = mx.mod.Module(symbol=smooth_net,
+                                    context=context,
+                                    data_names=['data', 'flow'])
+
     smoothnet_model.fit(train_iter,
                         num_epoch=epoch,
                         optimizer_params={'learning_rate':learning_rate})
@@ -40,13 +54,13 @@ if __name__ == '__main__':
     parser.add_argument(
         '--device',
         type=str,
-        default='GPU',
-        help="GPU or CPU"
+        default='gpu',
+        help="gpu or cpu"
     )
     parser.add_argument(
         '--learning_rate',
         type=float,
-        default=1,
+        default=0.1,
         help='Initial learning rate.'
     )
     parser.add_argument(
@@ -56,10 +70,28 @@ if __name__ == '__main__':
         help='Batch size.'
     )
     parser.add_argument(
+        '--frame_rate',
+        type=int,
+        default=30,
+        help='Frame rate in the video.'
+    )
+    parser.add_argument(
         '--data_dir',
         type=str,
         default='/tmp/data',
         help='Directory of the data.'
+    )
+    parser.add_argument(
+        '--image_shape',
+        type=tuple,
+        default=(3, 360, 480),
+        help='Image shape.'
+    )
+    parser.add_argument(
+        '--flow_shape',
+        type=tuple,
+        default=(720, 960, 2),
+        help='Flow shape.'
     )
     parser.add_argument(
         '--epoch',
