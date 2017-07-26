@@ -1,8 +1,12 @@
 import argparse
+import logging
+import cv2
 import mxnet as mx
 from smoothnet import get_smooth_net
 from imageflowiter import ImageFlowIter
 
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 FLAGS = None
 
 
@@ -17,13 +21,10 @@ def train():
     epoch = FLAGS.epoch
     learning_rate = FLAGS.learning_rate
 
-    batch_image_shape = (batch_size,) + image_shape
-    batch_flow_shape = (batch_size, frame_rate) + flow_shape
-    batch_label_shape = (batch_size,) + label_shape
     train_iter = ImageFlowIter(data_names=['data', 'flow'],
-                               data_shapes=[batch_image_shape, batch_flow_shape],
+                               data_shapes=[image_shape, flow_shape],
                                label_names=['softmax_label'],
-                               label_shapes=[batch_label_shape],
+                               label_shapes=[label_shape],
                                batch_size=batch_size,
                                path_root=data_dir + '/train')
 
@@ -31,6 +32,8 @@ def train():
     flows = mx.sym.var('flow')
     labels = mx.sym.var('softmax_label')
 
+    batch_image_shape = (batch_size,) + image_shape
+    batch_flow_shape = (batch_size, frame_rate) + flow_shape
     smooth_net = get_smooth_net(images, batch_image_shape, flows, batch_flow_shape, labels)
 
     smoothnet_model = mx.mod.Module(symbol=smooth_net,
@@ -86,7 +89,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--image_shape',
         type=tuple,
-        default=(3, 360, 480),
+        default=(3, 720, 960),
         help='Image shape.'
     )
     parser.add_argument(
@@ -98,7 +101,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--label_shape',
         type=tuple,
-        default=(360, 480),
+        default=(720, 960),
         help='Label shape.'
     )
     parser.add_argument(

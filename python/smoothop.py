@@ -1,7 +1,8 @@
 import os
+import cv2
 import mxnet as mx
 import numpy as np
-import cv2
+
 
 class Smooth(mx.operator.CustomOp):
     def forward(self, is_train, req, in_data, out_data, aux):
@@ -14,33 +15,34 @@ class Smooth(mx.operator.CustomOp):
         self.assign(out_data[0], req[0], mx.nd.array(combined_feature_maps))
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
-        in_maps_grad = np.array([])
-        out_maps_grad = out_grad.asnumpy()
+        in_maps_grad = []
+        out_maps_grad = out_grad[0].asnumpy()
         for i, out_map_grad in enumerate(out_maps_grad):
-            if i==0:
+            if i == 0:
                 in_map_grad = 2 * out_map_grad
             else:
                 in_map_grad = out_map_grad
 
-            np.append(in_maps_grad, in_map_grad)
+            in_maps_grad.append(in_map_grad)
 
-        self.assign(in_grad[0], req[0], mx.nd.array(in_maps_grad))
+        self.assign(in_grad[0], req[0], mx.nd.array(np.array(in_maps_grad)))
 
     def _warp_feature_maps(self, batch_maps, batch_flow, frame_rate):
-        batch_warped_maps = [batch_maps[0]]
+        batch_warped_maps = [np.transpose(batch_maps[0], (1, 2, 0))]
 
-        for i, img_map in enumerate(batch_maps[:-1]):
-            for flow in batch_flow[i*frame_rate, i*(frame_rate+1)]:
+        for i, feature_map in enumerate(batch_maps[0:batch_maps.shape[0]-1]):
+            img_map = np.transpose(feature_map, (1, 2, 0))
+            img_flows = batch_flow[i]
+            for flow in img_flows:
                 img_map = self._warp_image(img_map, flow)
 
             batch_warped_maps.append(img_map)
 
-        batch_warped_maps = np.array(batch_warped_maps)
-        return batch_warped_maps
+        return np.transpose(np.array(batch_warped_maps), (0, 3, 1, 2))
 
     def _warp_image(self, img, flow):
         h, w = flow.shape[:2]
-        flow = -flow
+        #flow = -flow
         flow[:,:,0] += np.arange(w)
         flow[:,:,1] += np.arange(h)[:, np.newaxis]
         res = cv2.remap(img, flow, None, cv2.INTER_LINEAR)
