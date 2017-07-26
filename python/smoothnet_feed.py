@@ -13,15 +13,17 @@ def train():
     data_dir = FLAGS.data_dir
     image_shape = FLAGS.image_shape
     flow_shape = FLAGS.flow_shape
+    label_shape = FLAGS.label_shape
     epoch = FLAGS.epoch
     learning_rate = FLAGS.learning_rate
 
     batch_image_shape = (batch_size,) + image_shape
     batch_flow_shape = (batch_size, frame_rate) + flow_shape
+    batch_label_shape = (batch_size,) + label_shape
     train_iter = ImageFlowIter(data_names=['data', 'flow'],
                                data_shapes=[batch_image_shape, batch_flow_shape],
                                label_names=['softmax_label'],
-                               label_shapes=[(batch_size, 360, 480)],
+                               label_shapes=[batch_label_shape],
                                batch_size=batch_size,
                                path_root=data_dir + '/train')
 
@@ -48,7 +50,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--action',
         type=str,
-        default='inference',
+        default='train',
         help="Actions: 'train' or 'inference'."
     )
     parser.add_argument(
@@ -66,7 +68,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--batch_size',
         type=int,
-        default=10,
+        default=5,
         help='Batch size.'
     )
     parser.add_argument(
@@ -92,6 +94,12 @@ if __name__ == '__main__':
         type=tuple,
         default=(720, 960, 2),
         help='Flow shape.'
+    )
+    parser.add_argument(
+        '--label_shape',
+        type=tuple,
+        default=(360, 480),
+        help='Label shape.'
     )
     parser.add_argument(
         '--epoch',

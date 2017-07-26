@@ -26,7 +26,7 @@ class Smooth(mx.operator.CustomOp):
 
         self.assign(in_grad[0], req[0], mx.nd.array(in_maps_grad))
 
-    def _warp_feature_maps(self, batch_maps, batch_flow):
+    def _warp_feature_maps(self, batch_maps, batch_flow, frame_rate):
         batch_warped_maps = [batch_maps[0]]
 
         for i, img_map in enumerate(batch_maps[:-1]):
