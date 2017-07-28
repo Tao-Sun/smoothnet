@@ -42,7 +42,11 @@ def train():
 
     smoothnet_model.fit(train_iter,
                         num_epoch=epoch,
-                        optimizer_params={'learning_rate':learning_rate})
+                        eval_data=train_iter,  # validation data
+                        optimizer='sgd',  # use SGD to train
+                        optimizer_params={'learning_rate': learning_rate},  # use fixed learning rate
+                        eval_metric='acc',  # report accuracy during training
+                        batch_end_callback=mx.callback.Speedometer(batch_size, 2))
 
 
 def inference():

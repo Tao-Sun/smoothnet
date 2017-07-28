@@ -2,7 +2,7 @@ import numpy as np
 import mxnet as mx
 import os
 import random
-import cv2
+import math
 
 class ImageFlowIter(mx.io.DataIter):
     def __init__(self, data_names, data_shapes, label_names, label_shapes, path_root, batch_size=3, frame_rate=30, shuffle=True):
@@ -28,10 +28,8 @@ class ImageFlowIter(mx.io.DataIter):
             random.shuffle(self._subdirs)
 
         self._cur_subdir_idx = 0
-        self._cur_subdir_files = self._get_cur_subdir_files()
-        self._subdir_batch_num = self._get_subdir_batch_num()
-        self._cur_batch_idx = 0
-        self._cur_batch_size = self._batch_size
+        self._reset_cur_subdir()
+
 
     def __next__(self):
         return self.next()
@@ -55,28 +53,37 @@ class ImageFlowIter(mx.io.DataIter):
     def next(self):
         if self._cur_subdir_idx < len(self._subdirs):
             if self._cur_batch_idx < self._subdir_batch_num:
+                print('A new batch starts:')
                 batch_start_idx = self._cur_batch_idx * self._batch_size
                 batch_end_idx = self._get_batch_end_idx(batch_start_idx)
                 self._cur_batch_size = batch_end_idx - batch_start_idx + 1
 
                 data = self._read_batch_data(batch_start_idx, batch_end_idx)
                 labels = self._read_batch_labels(batch_start_idx, batch_end_idx)
-                print("images shape:" + str(data[0].shape))
-                print("flows shape:" + str(data[1].shape))
-                print("labels shape:" + str(labels[0].shape))
+                #print("images shape:" + str(data[0].shape))
+                #print("flows shape:" + str(data[1].shape))
+                #print("labels shape:" + str(labels[0].shape))
                 
                 self._cur_batch_idx += 1
+                print('\n')
                 return mx.io.DataBatch(data, labels)
             else:
                 self._cur_subdir_idx += 1
                 if self._cur_subdir_idx < len(self._subdirs):
-                    self._cur_subdir_files = self._get_cur_subdir_files()
-                    self._subdir_batch_num = self._get_subdir_batch_num()
-                    self._cur_batch_idx = 0
+                    print('Subdir process completed! Moving to the next subdir!')
+                    self._reset_cur_subdir()
 
-                    self.next()
+                self.next()
         else:
+            print('Epoch process completed!')
             raise StopIteration
+
+    def _reset_cur_subdir(self):
+        self._cur_subdir_files = self._get_cur_subdir_files()
+        self._subdir_batch_num = self._get_subdir_batch_num()
+        print('_get_subdir_batch_num:' + str(self._subdir_batch_num))
+        self._cur_batch_idx = 0
+        self._cur_batch_size = self._batch_size
 
     def _get_cur_subdir_files(self):
         subdir_name = self._subdirs[self._cur_subdir_idx]
@@ -88,7 +95,7 @@ class ImageFlowIter(mx.io.DataIter):
         return files
 
     def _get_subdir_batch_num(self):
-        return len(self._cur_subdir_files) / self._batch_size + 1
+        return int(math.ceil(float(len(self._cur_subdir_files)) / self._batch_size))
     
     def _read_batch_data(self, batch_start_idx, batch_end_idx):
         batch_images = []
@@ -98,11 +105,11 @@ class ImageFlowIter(mx.io.DataIter):
 
         for i, file_name in enumerate(self._cur_subdir_files[batch_start_idx:batch_end_idx]):
             image_path = image_dir + '/' + file_name + '.png'
-            print('image path:' + image_path)
+            print('image file:' + file_name)
             img = np.transpose(mx.image.imdecode(open(image_path).read()).asnumpy(), (2, 0, 1))
             batch_images.append(img)
 
-            if i < (batch_end_idx-batch_start_idx):
+            if i < (batch_end_idx-batch_start_idx-1):
                 img_flows = self._get_img_flows(flow_dir, file_name)
                 batch_flows.append(img_flows)
             else:
@@ -116,7 +123,6 @@ class ImageFlowIter(mx.io.DataIter):
         for file_name in self._cur_subdir_files[batch_start_idx:batch_end_idx]:
             full_file_name = self._subdirs[self._cur_subdir_idx] + '_' + file_name.zfill(6) + '_L.png'
             label_path = label_dir + '/' + full_file_name
-            print('label path:' + label_path)
             label = mx.image.imdecode(open(label_path).read(), flag=0).asnumpy()[:,:,0]
             labels.append(label)
 
