@@ -20,17 +20,17 @@ ret, frame = cap.read()
 i = video_start_idx
 while(ret):
     if i >= img_start_idx:
-    	img_name = str(i) + '.png' #video_name + '_' + str(i).zfill(6) +'.png'
-    	cv2.imwrite(img_path + '/'+ img_name, frame)
+        img_name = str(i) + '.png' #video_name + '_' + str(i).zfill(6) +'.png'
+        cv2.imwrite(img_path + '/'+ img_name, frame)
     
     if i % 100 == 0:
-    	print(str(i) + " processed!")
+        print(str(i) + " processed!")
     i = i + 1
     
     if i <= img_end_idx:
-    	ret, frame = cap.read()
+        ret, frame = cap.read()
     else:
-	break
+        break
 
 cap.release()
 
