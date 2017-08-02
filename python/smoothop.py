@@ -8,9 +8,8 @@ class Smooth(mx.operator.CustomOp):
     def forward(self, is_train, req, in_data, out_data, aux):
         batch_feature_maps = in_data[0].asnumpy()
         batch_flow = in_data[1].asnumpy()
-        frame_rate = 30
 
-        warped_feature_maps = self._warp_feature_maps(batch_feature_maps, batch_flow, frame_rate)
+        warped_feature_maps = self._warp_feature_maps(batch_feature_maps, batch_flow)
         combined_feature_maps = batch_feature_maps + warped_feature_maps
         self.assign(out_data[0], req[0], mx.nd.array(combined_feature_maps))
 
