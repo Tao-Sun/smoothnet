@@ -12,7 +12,7 @@ class Smooth(mx.operator.CustomOp):
 
         warped_feature_maps = self._warp_feature_maps(batch_feature_maps, batch_flow, frame_rate)
         combined_feature_maps = batch_feature_maps + warped_feature_maps
-        self.assign(out_data[0], req[0], mx.nd.array(batch_feature_maps))
+        self.assign(out_data[0], req[0], mx.nd.array(combined_feature_maps))
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
         in_maps_grad = []
@@ -25,9 +25,9 @@ class Smooth(mx.operator.CustomOp):
 
             in_maps_grad.append(in_map_grad)
 
-        self.assign(in_grad[0], req[0], mx.nd.array(np.array(out_maps_grad)))
+        self.assign(in_grad[0], req[0], mx.nd.array(np.array(in_maps_grad)))
 
-    def _warp_feature_maps(self, batch_maps, batch_flow, frame_rate):
+    def _warp_feature_maps(self, batch_maps, batch_flow):
         batch_warped_maps = [np.transpose(batch_maps[0], (1, 2, 0))]
 
         for i, feature_map in enumerate(batch_maps[0:batch_maps.shape[0]-1]):

@@ -56,6 +56,8 @@ class ImageFlowIter(mx.io.DataIter):
                 print('A new batch starts:')
                 batch_start_idx = self._cur_batch_idx * self._batch_size
                 batch_end_idx = self._get_batch_end_idx(batch_start_idx)
+                print('start index:' + str(batch_start_idx))
+                print('end index:' + str(batch_end_idx))
                 self._cur_batch_size = batch_end_idx - batch_start_idx + 1
 
                 data = self._read_batch_data(batch_start_idx, batch_end_idx)
@@ -81,7 +83,6 @@ class ImageFlowIter(mx.io.DataIter):
     def _reset_cur_subdir(self):
         self._cur_subdir_files = self._get_cur_subdir_files()
         self._subdir_batch_num = self._get_subdir_batch_num()
-        print('_get_subdir_batch_num:' + str(self._subdir_batch_num))
         self._cur_batch_idx = 0
         self._cur_batch_size = self._batch_size
 

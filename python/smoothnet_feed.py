@@ -12,7 +12,7 @@ FLAGS = None
 
 def train():
     batch_size = FLAGS.batch_size
-    context = mx.gpu() if FLAGS.device == 'gpu' else mx.cpu()
+    context = [mx.gpu(0), mx.gpu(1)] if FLAGS.device == 'gpu' else mx.cpu()
     frame_rate = FLAGS.frame_rate
     data_dir = FLAGS.data_dir
     image_shape = FLAGS.image_shape
