@@ -31,8 +31,14 @@ def resize_images(input_dir, output_dir, scale=0.5, apply_clahe=False):
                 result_img = resize_img(img, scale)
 
                 if apply_clahe:
+                    lab = cv2.cvtColor(result_img, cv2.COLOR_BGR2LAB)
+                    l, a, b = cv2.split(lab)
+
                     clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(4, 4))
-                    result_img = clahe.apply(result_img)
+                    cl = clahe.apply(l)
+                    limg = cv2.merge((cl, a, b))
+
+                    result_img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
 
                 cv2.imwrite(output_dir + '/' + img_file, result_img)
 
