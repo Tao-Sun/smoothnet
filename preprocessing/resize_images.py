@@ -20,54 +20,55 @@ def resize_img(img, scale):
 
 
 def resize_images(input_dir, output_dir, scale=0.5, apply_clahe=False):
-    os.chdir(input_dir)
+    for _, _, files in os.walk(input_dir):
+        for f in files:
+            if f.index('.png') > 0:
+                img_file = f
+                print(img_file)
+                img = cv2.imread(input_dir + '/' + img_file)
+                #print (img.shape)
 
-    for img_file in glob.glob('*.png'):
-        print(img_file)
-        img = cv2.imread(img_file)
-        #print (img.shape)
-        
-        result_img = resize_img(img, scale)
+                result_img = resize_img(img, scale)
 
-        if apply_clahe:
-            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(4, 4))
-            result_img = clahe.apply(result_img)
+                if apply_clahe:
+                    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(4, 4))
+                    result_img = clahe.apply(result_img)
 
-        cv2.imwrite(output_dir + '/' + img_file, result_img)
+                cv2.imwrite(output_dir + '/' + img_file, result_img)
 
 
 def resize_labels(input_dir, output_dir, class_count, scale=0.5, apply_clahe=False):
-    os.chdir(input_dir)    
+    for _, _, files in os.walk(input_dir):
+        for f in files:
+            if f.index('.png') > 0:
+                label_file = f
+                print(label_file)
+                label_img = cv2.imread(input_dir + '/' + label_file, 0)
+                label_img_height = label_img.shape[0]
+                label_img_width = label_img.shape[1]
+                label_pixel_list = np.reshape(label_img, (label_img_height * label_img_width))
 
-    for label_file in glob.glob('*.png'):
-        print(label_file)
-        label_img = cv2.imread(label_file, 0)
-        label_img_height = label_img.shape[0]
-        label_img_width = label_img.shape[1]
-        label_pixel_list = np.reshape(label_img, (label_img_height * label_img_width))
+                resized_img_height = int(round(label_img_height * scale))
+                resized_img_width = int(round(label_img_width * scale))
+                stacked_class_img = np.array([]).reshape((0, resized_img_height, resized_img_width))
 
-        resized_img_height = int(round(label_img_height * scale))
-        resized_img_width = int(round(label_img_width * scale))
-        stacked_class_img = np.array([]).reshape((0, resized_img_height, resized_img_width))
+                for class_value in range(class_count):
+                    #print('class value:' + str(class_value))
+                    class_label_list = [(0.0 if label_pixel_list[i] != class_value else 255.0) for i, label in enumerate(label_pixel_list)]
+                    class_label_img = np.reshape(class_label_list, (label_img.shape[0], label_img.shape[1]))
+                    #print(class_label_img)
 
-        for class_value in range(class_count):
-            print('class value:' + str(class_value))
-            class_label_list = [(0.0 if label_pixel_list[i] != class_value else 255.0) for i, label in enumerate(label_pixel_list)]
-            class_label_img = np.reshape(class_label_list, (label_img.shape[0], label_img.shape[1]))
-            #print(class_label_img)
+                    resized_class_img = resize_img(class_label_img, scale)
 
-            resized_class_img = resize_img(class_label_img, scale)
+                    if apply_clahe:
+                        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(4, 4))
+                        resized_class_img = clahe.apply(resized_class_img)
 
-            if apply_clahe:
-                clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(4, 4))
-                resized_class_img = clahe.apply(resized_class_img)
+                    resized_class_img = np.reshape(resized_class_img, (1, resized_class_img.shape[0], resized_class_img.shape[1]))
+                    stacked_class_img = np.vstack((stacked_class_img, resized_class_img))
 
-            resized_class_img = np.reshape(resized_class_img, (1, resized_class_img.shape[0], resized_class_img.shape[1]))
-            stacked_class_img = np.vstack((stacked_class_img, resized_class_img))
-
-
-        result_img = np.argmax(stacked_class_img, axis=0)
-        cv2.imwrite(output_dir + '/' + label_file, result_img)
+                result_img = np.argmax(stacked_class_img, axis=0)
+                cv2.imwrite(output_dir + '/' + label_file, result_img)
 
 
 FLAGS = None

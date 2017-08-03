@@ -43,10 +43,10 @@ label_colors = [animal, archway, bicyclist, bridge, building, car, cart_luggage_
 
 for _, _, files in os.walk(color_annot_dir):
     for f in files:
-	if f.index('.png') > 0:
-	    color_annot = cv2.imread(color_annot_dir + '/' + f)
-	    gray_annot = np.zeros((color_annot.shape[0:2]))
-	    for i, label_color in enumerate(label_colors):
-		gray_annot[(color_annot[:,:,0] == label_color[0]) & (color_annot[:,:,1] == label_color[1]) & (color_annot[:,:,2] == label_color[2])] = i
+        if f.index('.png') > 0:
+            color_annot = cv2.imread(color_annot_dir + '/' + f)
+            gray_annot = np.zeros((color_annot.shape[0:2]))
+        for i, label_color in enumerate(label_colors):
+            gray_annot[(color_annot[:,:,0] == label_color[0]) & (color_annot[:,:,1] == label_color[1]) & (color_annot[:,:,2] == label_color[2])] = i
             cv2.imwrite(gray_annot_dir + '/' + f, gray_annot)
-            print(str(f) + ' processed!')    
+            print(str(f) + ' processed!')
