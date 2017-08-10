@@ -39,7 +39,7 @@ def pooling(name, data, data_shape, pool_type="max", kernel=(2, 2), stride=(2, 2
     return output
 
 
-def get_smooth_net(images, images_shape, flows, flows_shape, labels):
+def get_smoothnet(images, images_shape, flows, flows_shape, labels):
     num_filter = 64
 
     conv1 = convolution('conv1', images, images_shape, num_filter)
@@ -54,7 +54,7 @@ def get_smooth_net(images, images_shape, flows, flows_shape, labels):
     conv4 = convolution('conv4', pool3, images_shape, num_filter)
     pool4 = pooling('pool4', conv4, images_shape)
 
-    deconv4 = deconv('deconv4', pool4, images_shape, num_filter)
+    deconv4 = deconv('deconv4', pool4, images_shape, num_filter, kernel=(3, 2))
     conv_decode4 = convolution('conv_decode4', deconv4, images_shape, num_filter, act_type=None)
 
     deconv3 = deconv('deconv3', conv_decode4, images_shape, num_filter)
@@ -74,7 +74,7 @@ def get_smooth_net(images, images_shape, flows, flows_shape, labels):
     _, out_shapes, _ = conv_classifier.infer_shape(data=images_shape, flow=flows_shape)
     print("Layer conv_classifier output shape: " + str(out_shapes))
 
-    smoothnet = mx.sym.SoftmaxOutput(data=conv_classifier, label=labels, multi_output=True, ignore_label=11, use_ignore=True)
+    smoothnet = mx.sym.SoftmaxOutput(data=conv_classifier, label=labels, multi_output=True, use_ignore=True)
     _, out_shapes, _ = smoothnet.infer_shape(data=images_shape, flow=flows_shape)
     print("Net output shape: " + str(out_shapes) + '\n')
 

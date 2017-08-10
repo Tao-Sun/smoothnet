@@ -2,8 +2,8 @@ import argparse
 import logging
 import cv2
 import mxnet as mx
-from smoothnet import get_smoothnet
-from imageflowiter import ImageFlowIter
+from segnet import get_segnet
+from imageiter import ImageIter
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -12,10 +12,10 @@ FLAGS = None
 
 def train():
     batch_size = FLAGS.batch_size
-    frame_rate = FLAGS.frame_rate
     data_dir = FLAGS.data_dir
+    label_dir = FLAGS.label_dir
+    imagelist_path = FLAGS.imagelist_path
     image_shape = FLAGS.image_shape
-    flow_shape = FLAGS.flow_shape
     label_shape = FLAGS.label_shape
     epoch = FLAGS.epoch
     learning_rate = FLAGS.learning_rate
@@ -29,35 +29,34 @@ def train():
     else:
         context = mx.cpu()
 
-
-    train_iter = ImageFlowIter(data_names=['data', 'flow'],
-                               data_shapes=[image_shape, flow_shape],
-                               label_names=['softmax_label'],
-                               label_shapes=[label_shape],
-                               batch_size=batch_size,
-                               path_root=data_dir)
+    train_iter = ImageIter(data_names=['data'],
+                           data_shapes=[image_shape],
+                           label_names=['softmax_label'],
+                           label_shapes=[label_shape],
+                           data_root=data_dir,
+                           label_root=label_dir,
+                           imagelist_path=imagelist_path,
+                           batch_size=batch_size)
 
     images = mx.sym.var('data')
-    flows = mx.sym.var('flow')
     labels = mx.sym.var('softmax_label')
 
     batch_image_shape = (batch_size,) + image_shape
-    batch_flow_shape = (batch_size, frame_rate) + flow_shape
-    smooth_net = get_smoothnet(images, batch_image_shape, flows, batch_flow_shape, labels)
+    segnet = get_segnet(images, batch_image_shape, labels)
 
-    smoothnet_model = mx.mod.Module(symbol=smooth_net,
-                                    context=context,
-                                    data_names=['data', 'flow'])
+    segnet_model = mx.mod.Module(symbol=segnet,
+                                 context=context,
+                                 data_names=['data'])
 
     # allocate memory given the input data and label shapes
-    smoothnet_model.bind(data_shapes=train_iter.provide_data, label_shapes=train_iter.provide_label)
+    segnet_model.bind(data_shapes=train_iter.provide_data, label_shapes=train_iter.provide_label)
 
     # initialize parameters by uniform random numbers
-    smoothnet_model.init_params(initializer=mx.init.Uniform(scale=.07))
+    segnet_model.init_params(initializer=mx.init.Uniform(scale=.07))
     # use SGD with learning rate 0.1 to train
     #lr_scheduler = mx.lr_scheduler.FactorScheduler(step=100, factor=0.9)
     optimizer_params = (('learning_rate', learning_rate), ('momentum', 0.9), ('wd', 0.0005))
-    smoothnet_model.init_optimizer(optimizer='sgd', optimizer_params=optimizer_params)
+    segnet_model.init_optimizer(optimizer='sgd', optimizer_params=optimizer_params)
     # use accuracy as the metric
     metric = mx.metric.create('acc')
     # train 5 epochs, i.e. going over the data iter one pass
@@ -66,22 +65,28 @@ def train():
         metric.reset()
         for i, batch in enumerate(train_iter):
             cur_batch_size = batch.data[0].shape[0]
-            print('current batch %d, size: %d' % (i, cur_batch_size))
-            binded_batch_size = smoothnet_model.data_shapes[0].shape[0]
+            #print('current batch %d, size: %d' % (i, cur_batch_size))
+            binded_batch_size = segnet_model.data_shapes[0].shape[0]
             if cur_batch_size != binded_batch_size:
                 print('previous batch size: %d ;rebinding to batch size: %d' % (binded_batch_size, cur_batch_size))
-                smoothnet_model.bind(data_shapes=train_iter.provide_data,
-                                     label_shapes=train_iter.provide_label,
-                                     force_rebind=True)
+                segnet_model.bind(data_shapes=train_iter.provide_data,
+                                  label_shapes=train_iter.provide_label,
+                                  force_rebind=True)
 
-            smoothnet_model.forward(batch, is_train=True)  # compute predictions
-            smoothnet_model.update_metric(metric, batch.label)  # accumulate prediction accuracy
+            segnet_model.forward(batch, is_train=True)  # compute predictions
+            #print(batch.label[0][0].asnumpy())
+            segnet_model.update_metric(metric, batch.label)  # accumulate prediction accuracy
+            #print('hererree5')
             #print('current label shape: ' + str(batch.label[0].shape))
-            smoothnet_model.backward()  # compute gradients
-            smoothnet_model.update()  # update parameters
+            segnet_model.backward()  # compute gradients
+            #print('hererree3')
+            segnet_model.update()  # update parameters
+            #print('hererree4')
 
-            if ((i - 1) % 3 == 0):
+            if (i - 1) % 3 == 0:
+                #print('hererree1')
                 print('batch %d, Training %s' % (i, metric.get()))
+            #print('hererree2')
         print('Epoch %d, Training %s' % (epoch, metric.get()))
 
 
@@ -124,28 +129,28 @@ if __name__ == '__main__':
         help='Batch size.'
     )
     parser.add_argument(
-        '--frame_rate',
-        type=int,
-        default=30,
-        help='Frame rate in the video.'
-    )
-    parser.add_argument(
         '--data_dir',
         type=str,
         default='/tmp/data',
         help='Directory of the data.'
     )
     parser.add_argument(
+        '--label_dir',
+        type=str,
+        default='/tmp/data',
+        help='Directory of the labels. '
+    )
+    parser.add_argument(
+        '--imagelist_path',
+        type=str,
+        default='/tmp/data',
+        help='Path of the image list file. '
+    )
+    parser.add_argument(
         '--image_shape',
         type=tuple,
         default=(3, 360, 480),
         help='Image shape.'
-    )
-    parser.add_argument(
-        '--flow_shape',
-        type=tuple,
-        default=(360, 480, 2),
-        help='Flow shape.'
     )
     parser.add_argument(
         '--label_shape',
