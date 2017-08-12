@@ -2,8 +2,8 @@ import argparse
 import logging
 import cv2
 import mxnet as mx
-from smoothnet import get_smoothnet
-from imageflowiter import ImageFlowIter
+from smooth_segnet import get_smooth_segnet
+from imageflowiter1 import ImageFlowIter
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -12,8 +12,10 @@ FLAGS = None
 
 def train():
     batch_size = FLAGS.batch_size
+    stride = FLAGS.stride
     frame_rate = FLAGS.frame_rate
     data_dir = FLAGS.data_dir
+    test_dir = FLAGS.test_dir
     image_shape = FLAGS.image_shape
     flow_shape = FLAGS.flow_shape
     label_shape = FLAGS.label_shape
@@ -29,13 +31,21 @@ def train():
     else:
         context = mx.cpu()
 
-
     train_iter = ImageFlowIter(data_names=['data', 'flow'],
+                                data_shapes=[image_shape, flow_shape],
+                                label_names=['softmax_label'],
+                                label_shapes=[label_shape],
+                                batch_size=batch_size,
+                                stride = stride,
+                                path_root=data_dir)
+
+    test_iter = ImageFlowIter(data_names=['data', 'flow'],
                                data_shapes=[image_shape, flow_shape],
                                label_names=['softmax_label'],
                                label_shapes=[label_shape],
                                batch_size=batch_size,
-                               path_root=data_dir)
+                               stride=stride,
+                               path_root=test_dir)
 
     images = mx.sym.var('data')
     flows = mx.sym.var('flow')
@@ -43,7 +53,7 @@ def train():
 
     batch_image_shape = (batch_size,) + image_shape
     batch_flow_shape = (batch_size, frame_rate) + flow_shape
-    smooth_net = get_smoothnet(images, batch_image_shape, flows, batch_flow_shape, labels)
+    smooth_net = get_smooth_segnet(images, batch_image_shape, flows, batch_flow_shape, labels)
 
     smoothnet_model = mx.mod.Module(symbol=smooth_net,
                                     context=context,
@@ -66,24 +76,25 @@ def train():
         metric.reset()
         for i, batch in enumerate(train_iter):
             cur_batch_size = batch.data[0].shape[0]
-            print('current batch %d, size: %d' % (i, cur_batch_size))
-            binded_batch_size = smoothnet_model.data_shapes[0].shape[0]
-            if cur_batch_size != binded_batch_size:
-                print('previous batch size: %d ;rebinding to batch size: %d' % (binded_batch_size, cur_batch_size))
-                smoothnet_model.bind(data_shapes=train_iter.provide_data,
-                                     label_shapes=train_iter.provide_label,
-                                     force_rebind=True)
+            #print('batch index %d, size: %d' % (i, cur_batch_size))
 
             smoothnet_model.forward(batch, is_train=True)  # compute predictions
             smoothnet_model.update_metric(metric, batch.label)  # accumulate prediction accuracy
             #print('current label shape: ' + str(batch.label[0].shape))
             smoothnet_model.backward()  # compute gradients
             smoothnet_model.update()  # update parameters
+            #print('batch %d training completed' % i)
 
-            if ((i - 1) % 3 == 0):
+            if (i > 0) & (i % 10 == 0):
+                #print('just for testing............')
+                #score = smoothnet_model.score(test_iter, ['acc'], num_batch=10)
+                #print('test ended.............')
                 print('batch %d, Training %s' % (i, metric.get()))
-        print('Epoch %d, Training %s' % (epoch, metric.get()))
 
+        print('epoch testing starts ............')
+        score = smoothnet_model.score(test_iter, ['acc'])
+        print('testing ended.............')
+        print('Epoch %d, Training %s, Testing %s \n' % (epoch, metric.get(), score))
 
     # smoothnet_model.fit(train_iter,
     #                     num_epoch=epoch,
@@ -124,6 +135,12 @@ if __name__ == '__main__':
         help='Batch size.'
     )
     parser.add_argument(
+        '--stride',
+        type=int,
+        default=2,
+        help='Stride.'
+    )
+    parser.add_argument(
         '--frame_rate',
         type=int,
         default=30,
@@ -134,6 +151,12 @@ if __name__ == '__main__':
         type=str,
         default='/tmp/data',
         help='Directory of the data.'
+    )
+    parser.add_argument(
+        '--test_dir',
+        type=str,
+        default='/tmp/data',
+        help='Directory of the test data.'
     )
     parser.add_argument(
         '--image_shape',

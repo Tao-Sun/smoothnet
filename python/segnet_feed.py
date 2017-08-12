@@ -12,11 +12,17 @@ FLAGS = None
 
 def train():
     batch_size = FLAGS.batch_size
+
     data_dir = FLAGS.data_dir
     label_dir = FLAGS.label_dir
     imagelist_path = FLAGS.imagelist_path
+    test_dir = FLAGS.test_dir
+    test_label_dir = FLAGS.test_label_dir
+    test_imagelist_path = FLAGS.test_imagelist_path
+
     image_shape = FLAGS.image_shape
     label_shape = FLAGS.label_shape
+
     epoch = FLAGS.epoch
     learning_rate = FLAGS.learning_rate
 
@@ -37,6 +43,15 @@ def train():
                            label_root=label_dir,
                            imagelist_path=imagelist_path,
                            batch_size=batch_size)
+
+    test_iter = ImageIter(data_names=['data'],
+                          data_shapes=[image_shape],
+                          label_names=['softmax_label'],
+                          label_shapes=[label_shape],
+                          data_root=test_dir,
+                          label_root=test_label_dir,
+                          imagelist_path=test_imagelist_path,
+                          batch_size=batch_size)
 
     images = mx.sym.var('data')
     labels = mx.sym.var('softmax_label')
@@ -83,11 +98,13 @@ def train():
             segnet_model.update()  # update parameters
             #print('hererree4')
 
-            if (i - 1) % 3 == 0:
+            if (i - 1) % 5 == 0:
                 #print('hererree1')
                 print('batch %d, Training %s' % (i, metric.get()))
             #print('hererree2')
-        print('Epoch %d, Training %s' % (epoch, metric.get()))
+
+        score = segnet_model.score(test_iter, ['acc'])
+        print('Epoch %d, Training %s, Testing %s' % (epoch, metric.get(), score))
 
 
     # smoothnet_model.fit(train_iter,
@@ -135,16 +152,34 @@ if __name__ == '__main__':
         help='Directory of the data.'
     )
     parser.add_argument(
+        '--test_dir',
+        type=str,
+        default='/tmp/data',
+        help='Directory of the test data.'
+    )
+    parser.add_argument(
         '--label_dir',
         type=str,
         default='/tmp/data',
         help='Directory of the labels. '
     )
     parser.add_argument(
+        '--test_label_dir',
+        type=str,
+        default='/tmp/data',
+        help='Directory of the test labels. '
+    )
+    parser.add_argument(
         '--imagelist_path',
         type=str,
         default='/tmp/data',
         help='Path of the image list file. '
+    )
+    parser.add_argument(
+        '--test_imagelist_path',
+        type=str,
+        default='/tmp/data',
+        help='Path of the test image list file. '
     )
     parser.add_argument(
         '--image_shape',

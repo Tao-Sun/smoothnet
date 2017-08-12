@@ -53,7 +53,10 @@ class ImageFlowIter(mx.io.DataIter):
     def next(self):
         if self._cur_subdir_idx < len(self._subdirs):
             batch_start_idx = self._cur_batch_idx * self._batch_size
-            batch_end_idx = self._get_batch_end_idx(batch_start_idx)
+            batch_end_idx = batch_start_idx + self._batch_size
+            #print('expected start index:' + str(batch_start_idx))
+            #print('expected end index:' + str(batch_end_idx))
+
             if (self._cur_batch_idx < self._subdir_batch_num) & (batch_end_idx < len(self._cur_subdir_files)):
                 #print('A new batch starts:')
                 #print('start index:' + str(batch_start_idx))
@@ -77,7 +80,6 @@ class ImageFlowIter(mx.io.DataIter):
 
                 return self.next()
         else:
-            print('Epoch process completed!')
             raise StopIteration
 
     def _reset_cur_subdir(self):
@@ -85,7 +87,7 @@ class ImageFlowIter(mx.io.DataIter):
         self._subdir_batch_num = self._get_subdir_batch_num()
         self._cur_batch_idx = 0
         self._cur_batch_size = self._batch_size
-        print('_subdir_batch_num, _cur_batch_size: %s, %s' % (self._subdir_batch_num, self._cur_batch_size))
+        print('setting/resetting subdir..... subdir, %s; number of current subdir files, %s; subdir batch num: %s' % (self._subdirs[self._cur_subdir_idx], len(self._cur_subdir_files), self._subdir_batch_num))
 
     def _get_cur_subdir_files(self):
         subdir_name = self._subdirs[self._cur_subdir_idx]
